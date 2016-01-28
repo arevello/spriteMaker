@@ -23,7 +23,7 @@ void NewSizeChoice::on_btnConfirm_clicked()
     if(ui->txtWidth->text().toInt() < 200){
         newWidth = ui->txtWidth->text().toInt();
     }
-    emit done(newWidth,newHeight);
+    emit sizeSelectionSignal(newWidth,newHeight);
     ui->txtHeight->setText("");
     ui->txtWidth->setText("");
     this->setVisible(false);

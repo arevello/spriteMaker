@@ -2,34 +2,28 @@
 #include "ui_mainwindow.h"
 #include <iostream>
 #include "qpainter.h"
+#include <QMouseEvent>
+
 int newWidth = 0, newHeight = 0;
-std::vector<QRect> rectVect;
-std::vector<QColor> colorVect;
-
-class PaintWidget : public QWidget{
-public:
-    myWidget();
-    void setHeightAndWidthSpace(int heightSpace, int widthSpace, int height, int width);
-
-protected:
-    void paintEvent(QPaintEvent * e);
-
-private:
-    int heightSpace, widthSpace, height, width;
-};
-PaintWidget * paintWidg;
+std::vector<pixelBlock> pixels;
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
+    selectedCol = QColor(0,0,0,255);
+
     newChoiceWindow = new NewSizeChoice;
-    connect(newChoiceWindow,SIGNAL(done(int,int)),this,SLOT(changeSize(int,int)));
+    connect(newChoiceWindow,SIGNAL(sizeSelectionSignal(int,int)),this,SLOT(changeSize(int,int)));
 
-    paintWidg = new PaintWidget();
-    setCentralWidget(paintWidg);
+    newColorWindow = new ColorChoiceWindow;
+    newColorWindow->setVisible(true);
+    connect(newColorWindow,SIGNAL(colorSelectionSignal(QColor)),this,SLOT(changeColor(QColor)));
+    //TODO change where
 
+    this->changeSize(30,30);
 }
 
 MainWindow::~MainWindow()
@@ -45,65 +39,64 @@ void MainWindow::on_action_Open_triggered()
 void MainWindow::on_action_New_triggered()
 {
     newChoiceWindow->setVisible(true);
+    newChoiceWindow->setFocus();
 }
 
 void MainWindow::changeSize(int width, int height){
     //set up grid lines
     QRect winSize = this->geometry();
-    int winHeight = winSize.height();
-    int winWidth = winSize.width();
-    int widthSpace = (winWidth) / width;
-    int heightSpace = (winHeight - 60) / height;
+    winHeight = winSize.height();
+    winWidth = winSize.width();
+    widthSpace = (winWidth) / width;
+    heightSpace = (winHeight) / height;
     if(widthSpace > heightSpace)
         widthSpace = heightSpace;
     else if (heightSpace > widthSpace)
         heightSpace = widthSpace;
-    paintWidg->setHeightAndWidthSpace(heightSpace,widthSpace,height,width);
-}
 
-void PaintWidget::setHeightAndWidthSpace(int heightSpace, int widthSpace, int height, int width){
-    this->heightSpace = heightSpace;
-    this->widthSpace = widthSpace;
-    this->height = height;
-    this->width = width;
-    rectVect.clear();
-    rectVect.resize(height*width);
-    colorVect.clear();
-    colorVect.resize(height*width);
-    for(int i = 0; i < colorVect.size();i++){
-        if(i%4==0)
-            colorVect[i] = *(new QColor(255,0,0,255));
+    pixels.clear();
+    for (int i = 0; i < width; i++){
+        for(int j = 0; j < height; j++){
+            pixelBlock temp;
+            temp.color = QColor(0,0,0,0);
+            temp.xStart = i*this->widthSpace;
+            temp.yStart = j*this->heightSpace;
+            temp.xLength = this->widthSpace;
+            temp.yLength = this->heightSpace;
 
-    }
-}
-
-void PaintWidget::paintEvent(QPaintEvent *e){
-    QPainter painter(this);
-    painter.setPen(Qt::black);
-    int colorIndex = 0;
-    if(widthSpace > 0 && heightSpace > 0){
-        for (int i = 0; i < this->width; i++){
-            for(int j = 0; j < this->height; j++){
-                QRect temp = QRect(i*this->widthSpace,j*this->heightSpace,widthSpace,heightSpace);
-                if(colorVect[colorIndex].red()>251){
-                    painter.fillRect(temp,colorVect[colorIndex]);
-                    painter.drawRect(temp);
-                }
-                else{
-                    std::cout << colorVect[colorIndex].green() << std::endl;
-                    painter.fillRect(temp,Qt::white);
-                    painter.drawRect(temp);
-                }
-                rectVect.push_back(temp);
-                colorIndex++;
-            }
+            pixels.push_back(temp);
         }
     }
 }
 
-//void MainWindow::mousePressEvent(QMouseEvent *){
-//    for(int i = 0; i < rectVect.size(); i++){
-//        if(match of rect)
-//            colorVect[i] = QColor(255,0,0,255);
-//    }
-//}
+void MainWindow::paintEvent(QPaintEvent *e){
+    QPainter painter(this);
+    painter.setPen(Qt::black);
+    if(widthSpace > 0 && heightSpace > 0){
+        for(int i = 0; i < pixels.size(); i++){
+            pixelBlock temp = pixels[i];
+            painter.fillRect(QRect(temp.xStart,temp.yStart,temp.xLength,temp.yLength),temp.color);
+            painter.drawRect(QRect(temp.xStart,temp.yStart,temp.xLength,temp.yLength));
+        }
+    }
+}
+
+void MainWindow::mousePressEvent(QMouseEvent *e){
+    this->rectCollision(e->x(),e->y());
+}
+
+int MainWindow::rectCollision(int x, int y){
+    if(widthSpace > 0 && heightSpace > 0){
+        for(int i = 0; i < pixels.size(); i++){
+            if(x > pixels[i].xStart && x <= pixels[i].xStart + pixels[i].xLength && y > pixels[i].yStart && y <= pixels[i].yStart + pixels[i].yLength){
+                    pixels[i].color = selectedCol;
+                    break;
+            }
+        }
+    }
+    this->update();
+}
+
+void MainWindow::changeColor(QColor color){
+    selectedCol = color;
+}

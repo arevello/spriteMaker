@@ -21,7 +21,7 @@ private slots:
     void on_btnCancel_clicked();
 
 signals:
-    void done(int width, int height);
+    void sizeSelectionSignal(int width, int height);
 
 private:
     Ui::NewSizeChoice *ui;
